@@ -1,5 +1,5 @@
 // App shell cache. Bump VERSION when files change so phones pick up the update.
-const VERSION = "v9";
+const VERSION = "v10";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
