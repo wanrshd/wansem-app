@@ -188,6 +188,11 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.
 let URL_=store.get("url","");
 function fromHash(){if(location.hash.startsWith("#u=")){URL_=decodeURIComponent(location.hash.slice(3));store.set("url",URL_);return true}} // hash kept so Add to Home Screen captures it as the start URL
 fromHash();
+// also accept ?u= (some chat apps drop the #part of a link)
+try{const q=new URLSearchParams(location.search).get("u");if(q){URL_=q;store.set("url",q)}}catch(e){}
+// keep the link in the address so Add to Home Screen carries it into the installed app (iOS gives it separate storage)
+const stamp=()=>{if(URL_&&!location.hash.startsWith("#u="))history.replaceState(null,"",location.pathname+"#u="+encodeURIComponent(URL_))};
+stamp();
 window.addEventListener("hashchange",()=>{if(fromHash()){render();load()}});
 let cache=store.get("cache",null),queue=store.get("queue",[]);
 let rows=[],budgets={},months=[],cur="",showAll=false,today=new Date();
@@ -337,7 +342,7 @@ $("fSave").onclick=()=>{
 $("openSettings").onclick=()=>{$("sUrl").value=URL_;$("sQueue").textContent=queue.length?queue.length+" expense(s) waiting to sync.":"";show("setSheet")};
 $("sSave").onclick=()=>{const v=$("sUrl").value.trim();
   if(v&&!/^https:\/\/script\.google(usercontent)?\.com\//.test(v)){toast("That doesn't look like an Apps Script link");return}
-  URL_=v;store.set("url",v);hide();render();load();flush()};
+  URL_=v;store.set("url",v);if(v)stamp();hide();render();load();flush()};
 $("refresh").onclick=()=>{flush();load()};
 document.addEventListener("click",e=>{const m=e.target.closest("[data-m]");if(m){cur=m.dataset.m;showAll=false;render()}
   if(e.target.id==="more"){showAll=!showAll;render()}
