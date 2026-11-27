@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png?v=5">
 <link rel="icon" href="icon-192.png?v=5">
-<script>/* apply saved theme before paint */try{const t=JSON.parse(localStorage.getItem("theme")||'"system"');if(t!=="system")document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>/* apply saved theme + lock before paint */try{const t=JSON.parse(localStorage.getItem("theme")||'"system"');if(t!=="system")document.documentElement.dataset.theme=t;if(JSON.parse(localStorage.getItem("lockId")||'""'))document.documentElement.classList.add("lk")}catch(e){}</script>
 <style>
 /* Wansem Expenses PWA. Glass + teal, phone first, iOS-style floating tab bar. */
 :root{color-scheme:light;
@@ -92,6 +92,29 @@ h2{font-size:21px;font-weight:700;letter-spacing:-.015em;margin:0}
 .tx.f{border-top:0}
 .tx .n{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tx.pending{opacity:.55}
+.sw{position:relative;overflow:hidden;margin:0 -4px;padding:0 4px}
+.sw .tx{position:relative;z-index:1;background:transparent;transition:transform .25s cubic-bezier(.2,.9,.3,1);touch-action:pan-y;cursor:pointer}
+.sw.drag .tx{transition:none}
+.sw .del{all:unset;cursor:pointer;position:absolute;right:4px;top:6px;bottom:6px;width:76px;border-radius:14px;background:#ff453a;color:#fff;font-size:15px;font-weight:600;display:grid;place-items:center;opacity:0;transition:opacity .2s}
+.sw.open .del,.sw.drag .del{opacity:1}
+.sw.open .tx,.sw.drag .tx{background:var(--bg);border-radius:14px}
+.delrow{all:unset;cursor:pointer;display:block;width:100%;text-align:center;padding:14px 0;margin-top:10px;border-radius:16px;color:#ff453a;font-weight:600;font-size:17px;background:var(--glass2);box-sizing:border-box}
+.delrow.sure{background:#ff453a;color:#fff}
+/* switch */
+.switch{all:unset;cursor:pointer;width:51px;height:31px;border-radius:999px;background:var(--fill);position:relative;flex:none;transition:background .25s;box-shadow:inset 0 0 0 1px var(--sep)}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25);transition:transform .25s cubic-bezier(.2,.9,.3,1)}
+.switch[aria-checked=true]{background:var(--teal)}
+.switch[aria-checked=true]::after{transform:translateX(20px)}
+/* lock screen */
+.lk .wrap,.lk .tabbar{visibility:hidden}
+.lock{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
+.lock .wall{position:absolute}
+.lock>*:not(.wall){position:relative}
+.lock .mark{font:700 64px/1 -apple-system,BlinkMacSystemFont,"SF Pro Display","Inter",sans-serif;letter-spacing:-.04em;color:var(--ink)}
+.lock .mark i{display:inline-block;width:.24em;height:.24em;border-radius:50%;background:var(--teal);margin-left:.04em}
+.lock p{margin:0;color:var(--ink2);font-size:15px}
+.lock .save{width:auto;padding:15px 28px;margin-top:18px;display:inline-flex;align-items:center;gap:10px}
+.lock .save svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .foot{color:var(--ink3);font-size:13px;text-align:center;margin-top:18px}
 .empty{color:var(--ink2);font-size:15px;margin:6px 0}
 /* activity filters */
@@ -229,6 +252,11 @@ h2{font-size:21px;font-weight:700;letter-spacing:-.015em;margin:0}
       <div class="rowi"><input id="sUrl" placeholder="Paste Apps Script /exec link" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Sheet link"><button class="link b" id="sSave">Save</button></div>
     </div>
     <p class="grp-n">The same link your Shortcut posts to. It stays on this phone only.</p>
+    <p class="grp-t">Security</p>
+    <div class="group gl">
+      <div class="rowi"><span class="k">Face ID lock</span><button class="switch" id="lockSw" role="switch" aria-checked="false" aria-label="Face ID lock"></button></div>
+    </div>
+    <p class="grp-n">Asks for Face ID when you open the app, or come back after a minute away.</p>
     <p class="grp-t">Sync</p>
     <div class="group gl">
       <div class="rowi"><span class="k">Last updated</span><span class="v" id="sAt">–</span></div>
@@ -252,7 +280,7 @@ h2{font-size:21px;font-weight:700;letter-spacing:-.015em;margin:0}
 <div class="scrim" id="scrim"></div>
 <section class="sheet" id="addSheet" role="dialog" aria-modal="true" aria-label="Add expense">
   <div class="grab"></div>
-  <div class="shead"><button class="link" data-close>Cancel</button><h3>New expense</h3><span style="width:56px"></span></div>
+  <div class="shead"><button class="link" data-close>Cancel</button><h3 id="sTitle">New expense</h3><span style="width:56px"></span></div>
   <div class="amtin"><span>RM</span><input id="fAmt" inputmode="decimal" placeholder="0.00" autocomplete="off" aria-label="Amount"></div>
   <div class="cats" id="fCats"></div>
   <div class="field"><label for="fRem">Remark</label><input id="fRem" placeholder="e.g. Nasi lemak" autocomplete="off" enterkeyhint="done"></div>
@@ -261,7 +289,14 @@ h2{font-size:21px;font-weight:700;letter-spacing:-.015em;margin:0}
     <div class="field"><label for="fTime">Time</label><input id="fTime" type="time"></div>
   </div>
   <button class="save" id="fSave" disabled>Save</button>
+  <button class="delrow" id="fDel" hidden>Delete expense</button>
 </section>
+<div class="lock" id="lock" hidden>
+  <div class="wall" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="mark">wr<i></i></div>
+  <p>Expenses is locked</p>
+  <button class="save" id="unlockBtn"><svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9.5v1M15 9.5v1M12 9.5v3.5h-1M9.5 16c1.4 1 3.6 1 5 0"/></svg>Unlock with Face ID</button>
+</div>
 <div class="toast gl" id="toast" role="status"></div>
 
 <script>
@@ -308,10 +343,11 @@ $("themes").onclick=e=>{const b=e.target.closest("[data-t]");if(!b)return;theme=
 
 // ---------- data ----------
 function prep(){
-  const src=((cache&&cache.rows)||[]).concat(queue.map(q=>({d:q.iso,t:q.time,c:q.category,a:q.amount,r:q.remark,m:q.show||q.month,pending:1})));
+  const src=((cache&&cache.rows)||[]).concat(queue.map((q,i)=>({d:q.iso,t:q.time,c:q.category,a:q.amount,r:q.remark,m:q.show||q.month,pending:1,qi:i})));
   budgets=(cache&&cache.budgets)||{};
   rows=src.filter(x=>Number(x.a)>0&&/^\d{4}-\d{2}-\d{2}$/.test(x.d)).map(x=>{const[y,m,d]=x.d.split("-").map(Number),c=String(x.c),sp=c.indexOf(" ");
-    return{date:new Date(y,m-1,d),time:String(x.t||""),emoji:sp>0?c.slice(0,sp):"📦",cat:sp>0?c.slice(sp+1):c,amt:Number(x.a),note:String(x.r||"").trim(),month:String(x.m),pending:!!x.pending}});
+    return{date:new Date(y,m-1,d),time:String(x.t||""),emoji:sp>0?c.slice(0,sp):"📦",cat:sp>0?c.slice(sp+1):c,amt:Number(x.a),note:String(x.r||"").trim(),month:String(x.m),pending:!!x.pending,
+      key:x.pending?"q"+x.qi:"n"+x.n,n:x.n,qi:x.qi,raw:x}});
   months=[...new Set(rows.map(r=>r.month))].sort();
   today=new Date();today.setHours(0,0,0,0);
   if(!months.includes(cur))cur=months[months.length-1]||"";
@@ -359,7 +395,8 @@ function txList(L,limit){
   (limit?L.slice(0,limit):L).forEach(r=>{const k=r.date.toDateString();
     if(k!==lk){const dt=L.filter(x=>x.date.toDateString()===k).reduce((a,x)=>a+x.amt,0),diff=Math.round((today-r.date)/DAY);
       html+=`<div class="day"><span>${diff===0?"Today":diff===1?"Yesterday":r.date.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"short"})}</span><span>${rm(dt)}</span></div>`;lk=k;first=true}
-    html+=`<div class="tx${first?" f":""}${r.pending?" pending":""}"><span class="ico">${esc(r.emoji)}</span><div><div class="n">${esc(label(r))}</div><div class="c">${esc(r.cat)} · ${esc(r.time)}${r.pending?" · waiting to sync":""}</div></div><span class="a">${rm(r.amt)}</span></div>`;first=false});
+    const ok=r.pending||r.n;
+    html+=`${ok?`<div class="sw" data-k="${r.key}"><button class="del" data-del="${r.key}">Delete</button>`:""}<div class="tx${first?" f":""}${r.pending?" pending":""}"><span class="ico">${esc(r.emoji)}</span><div><div class="n">${esc(label(r))}</div><div class="c">${esc(r.cat)} · ${esc(r.time)}${r.pending?" · waiting to sync":""}</div></div><span class="a">${rm(r.amt)}</span></div>${ok?"</div>":""}`;first=false});
   return html||`<p class="empty">Nothing here yet.</p>`;
 }
 function renderMonths(){
@@ -475,18 +512,85 @@ $("fCats").onclick=e=>{const b=e.target.closest("[data-c]");if(!b)return;fCat=b.
 $("fAmt").oninput=e=>{let v=e.target.value.replace(",",".").replace(/[^0-9.]/g,"");const i=v.indexOf(".");if(i>=0)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,"").slice(0,2);e.target.value=v;fit();valid()};
 $("fDate").oninput=valid;
 $("fRem").onkeydown=e=>{if(e.key==="Enter")e.target.blur()};
-$("openAdd").onclick=()=>{const n=new Date();
-  $("fAmt").value="";$("fRem").value="";fCat="";$("fCats").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false"));
-  $("fDate").value=`${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;$("fTime").value=`${pad(n.getHours())}:${pad(n.getMinutes())}`;
-  fit();valid();show("addSheet");setTimeout(()=>$("fAmt").focus(),60)};
-$("fSave").onclick=()=>{
-  const a=Math.round(parseFloat($("fAmt").value)*100)/100;if(!(a>0)||!fCat)return;
+let editing=null;
+const setCat=c=>{fCat=c;$("fCats").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.c===c))};
+function openForm(r){
+  editing=r||null;const n=new Date();
+  $("sTitle").textContent=r?"Edit expense":"New expense";
+  $("fDel").hidden=!r;$("fDel").classList.remove("sure");$("fDel").textContent="Delete expense";
+  if(r){$("fAmt").value=String(r.amt);$("fRem").value=r.note==="-"?"":r.note;setCat(r.emoji+" "+r.cat);
+    $("fDate").value=`${r.date.getFullYear()}-${pad(r.date.getMonth()+1)}-${pad(r.date.getDate())}`;
+    const[h,mi]=r.time.split(":");$("fTime").value=`${pad(+h||0)}:${pad(+mi||0)}`}
+  else{$("fAmt").value="";$("fRem").value="";setCat("");
+    $("fDate").value=`${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;$("fTime").value=`${pad(n.getHours())}:${pad(n.getMinutes())}`}
+  fit();valid();show("addSheet");if(!r)setTimeout(()=>$("fAmt").focus(),60)}
+$("openAdd").onclick=()=>openForm();
+function formVals(){
+  const a=Math.round(parseFloat($("fAmt").value)*100)/100;if(!(a>0)||!fCat)return null;
   const[y,m,d]=$("fDate").value.split("-").map(Number),[hh,mm]=($("fTime").value||"0:00").split(":").map(Number);
-  const q={iso:$("fDate").value,date:`${pad(d)}/${pad(m)}/${y}`,time:`${hh}:${pad(mm)}`,category:fCat,amount:a,remark:$("fRem").value.trim()||"-",month:`${y}-${pad(m)} ${MF[m-1]}`};
+  return{iso:$("fDate").value,date:`${pad(d)}/${pad(m)}/${y}`,time:`${hh}:${pad(mm)}`,category:fCat,amount:a,remark:$("fRem").value.trim()||"-",month:`${y}-${pad(m)} ${MF[m-1]}`};
+}
+async function api(body){
+  const r=await fetch(URL_,{method:"POST",body:JSON.stringify(body)});
+  const t=await r.text();let j;try{j=JSON.parse(t)}catch(e){j={ok:false,error:"bad"}}
+  return j;
+}
+const origOf=r=>({d:r.raw.d,t:r.raw.t,c:r.raw.c,a:r.raw.a,r:r.raw.r});
+async function serverChange(r,body,okMsg){
+  try{const j=await api(Object.assign({n:r.n,orig:origOf(r)},body));
+    if(j.ok)toast(okMsg);else toast(j.error==="changed"?"That entry changed in the sheet, refreshed":"Sheet said no, refreshed")}
+  catch(e){toast("Can't reach the sheet, try again online")}
+  await load(true);
+}
+$("fSave").onclick=()=>{
+  const q=formVals();if(!q)return;
+  if(editing){
+    const r=editing;hide();
+    if(r.pending){Object.assign(queue[r.qi],q);store.set("queue",queue);renderAll();flush();return}
+    // optimistic: patch cached row, then confirm with the sheet
+    Object.assign(r.raw,{d:q.iso,t:q.time,c:q.category,a:q.amount,r:q.remark});store.set("cache",cache);
+    const before={d:r.date,t:r.time};
+    renderAll();
+    serverChange({n:r.n,raw:{d:`${before.d.getFullYear()}-${pad(before.d.getMonth()+1)}-${pad(before.d.getDate())}`,t:before.t,c:r.emoji+" "+r.cat,a:r.amt,r:r.note}},
+      {action:"edit",date:q.date,time:q.time,category:q.category,amount:q.amount,remark:q.remark},"Expense updated");
+    return}
   // the sheet files it under its active (salary) month if that is ahead of the calendar month
   const latest=months[months.length-1];q.show=latest&&latest.slice(0,7)>q.month.slice(0,7)?latest:q.month;
   queue.push(q);store.set("queue",queue);hide();renderAll();flush();
 };
+function delRow(r){
+  if(r.pending){queue.splice(r.qi,1);store.set("queue",queue);renderAll();toast("Deleted");return}
+  const snap={n:r.n,raw:Object.assign({},r.raw)};
+  cache.rows=cache.rows.filter(x=>x!==r.raw);store.set("cache",cache);renderAll();
+  serverChange(snap,{action:"delete"},"Deleted from sheet");
+}
+$("fDel").onclick=()=>{const b=$("fDel");
+  if(!b.classList.contains("sure")){b.classList.add("sure");b.textContent="Tap again to delete";return}
+  const r=editing;hide();if(r)delRow(r)};
+const byKey=k=>rows.find(r=>r.key===k);
+
+// swipe left on a row to reveal Delete, tap to edit
+let swOpen=null;
+const closeSw=()=>{if(swOpen){swOpen.classList.remove("open");swOpen.querySelector(".tx").style.transform="";swOpen=null}};
+let sx=0,sy=0,dx=0,swEl=null,moved=false,axis="";
+document.addEventListener("touchstart",e=>{const w=e.target.closest(".sw");if(e.target.closest(".del"))return;
+  if(swOpen&&swOpen!==w)closeSw();if(!w)return;
+  swEl=w;sx=e.touches[0].clientX;sy=e.touches[0].clientY;dx=0;moved=false;axis=""},{passive:true});
+document.addEventListener("touchmove",e=>{if(!swEl)return;const x=e.touches[0].clientX-sx,y=e.touches[0].clientY-sy;
+  if(!axis&&(Math.abs(x)>8||Math.abs(y)>8))axis=Math.abs(x)>Math.abs(y)?"x":"y";
+  if(axis!=="x")return;moved=true;
+  const base=swEl.classList.contains("open")?-84:0;dx=Math.min(0,Math.max(-120,base+x));
+  swEl.classList.add("drag");swEl.querySelector(".tx").style.transform=`translateX(${dx}px)`},{passive:true});
+document.addEventListener("touchend",()=>{if(!swEl)return;const w=swEl;swEl=null;w.classList.remove("drag");
+  if(!moved)return;
+  if(dx<-42){w.classList.add("open");w.querySelector(".tx").style.transform="translateX(-84px)";swOpen=w}
+  else{w.classList.remove("open");w.querySelector(".tx").style.transform="";if(swOpen===w)swOpen=null}
+  w.dataset.justSwiped="1";setTimeout(()=>delete w.dataset.justSwiped,350)});
+document.addEventListener("click",e=>{
+  const d=e.target.closest("[data-del]");if(d){const r=byKey(d.dataset.del);closeSw();if(r)delRow(r);return}
+  const w=e.target.closest(".sw");
+  if(w){if(w.dataset.justSwiped)return;if(w.classList.contains("open")){closeSw();return}const r=byKey(w.dataset.k);if(r)openForm(r);return}
+  if(swOpen)closeSw()});
 
 // ---------- settings ----------
 $("sSave").onclick=()=>{const v=$("sUrl").value.trim();
@@ -503,6 +607,41 @@ document.addEventListener("click",e=>{
 $("q").oninput=e=>{query=e.target.value;renderActivity()};
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){flush();load(true)}});
 window.addEventListener("online",()=>flush());
+
+// ---------- Face ID lock (WebAuthn passkey on this device) ----------
+const b64=buf=>btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const unb64=s=>Uint8Array.from(atob(s.replace(/-/g,"+").replace(/_/g,"/")),c=>c.charCodeAt(0));
+const rnd=n=>crypto.getRandomValues(new Uint8Array(n));
+let lockId=store.get("lockId",""),unlocking=false,hiddenAt=0;
+const canLock=()=>!!(window.PublicKeyCredential&&navigator.credentials&&window.isSecureContext);
+function syncLockUI(){$("lockSw").setAttribute("aria-checked",!!lockId)}
+async function verify(){
+  return navigator.credentials.get({publicKey:{challenge:rnd(32),rpId:location.hostname,allowCredentials:[{type:"public-key",id:unb64(lockId)}],userVerification:"required",timeout:60000}});
+}
+async function unlock(){
+  if(unlocking)return;unlocking=true;
+  try{await verify();$("lock").hidden=true;document.documentElement.classList.remove("lk")}catch(e){}finally{unlocking=false}
+}
+function lockNow(){if(!lockId)return;$("lock").hidden=false;document.documentElement.classList.add("lk");closeSw();hide()}
+$("unlockBtn").onclick=unlock;
+$("lockSw").onclick=async()=>{
+  if(!canLock()){toast("Face ID isn't available here");return}
+  if(lockId){ // turning off needs Face ID too
+    try{await verify();lockId="";store.set("lockId","");syncLockUI();toast("Face ID lock off")}catch(e){}
+    return}
+  try{
+    const c=await navigator.credentials.create({publicKey:{challenge:rnd(32),rp:{name:"Wansem Expenses",id:location.hostname},
+      user:{id:rnd(16),name:"wansem-expenses",displayName:"Wansem Expenses"},
+      pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required",residentKey:"preferred"},timeout:60000}});
+    lockId=b64(c.rawId);store.set("lockId",lockId);syncLockUI();toast("Face ID lock on")
+  }catch(e){toast("Face ID setup cancelled")}
+};
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden)hiddenAt=Date.now();
+  else if(lockId&&hiddenAt&&Date.now()-hiddenAt>60000)lockNow()});
+syncLockUI();
+if(lockId){$("lock").hidden=false;unlock()}
 
 applyTheme();renderAll();go(URL_?tab:"home");flush();load(true);
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
