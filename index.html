@@ -246,6 +246,18 @@ h2{font-size:20px;font-weight:700;letter-spacing:-.015em;margin:0}
 .tx.flash{animation:flash 2.4s ease}
 @keyframes flash{0%,45%{background:var(--tealS);box-shadow:0 0 0 6px var(--tealS)}100%{background:transparent;box-shadow:0 0 0 6px transparent}}
 .hap{position:fixed;left:-200px;top:0;opacity:0;pointer-events:none}
+/* payday */
+.pask{text-align:center;padding:6px 4px 0}
+.pico{width:66px;height:66px;border-radius:22px;margin:8px auto 16px;display:grid;place-items:center;background:radial-gradient(130% 130% at 15% 0%,#4ff0cf 0%,#14a58d 50%,#07524a 100%);box-shadow:0 12px 28px rgba(14,120,104,.35)}
+.pico svg{width:32px;height:32px;fill:none;stroke:#fff;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pask h3{margin:0 0 8px;font-size:23px;font-weight:700;letter-spacing:-.02em}
+.pask p{margin:0 auto;max-width:330px;color:var(--ink2);font-size:15px;line-height:1.5}
+.pask b,.pnote b{color:var(--ink);font-weight:600}
+.warn{margin:14px 0 0;padding:11px 14px;border-radius:14px;background:var(--fill);color:var(--ink);font-size:14px;line-height:1.45;text-align:left}
+.ghost{all:unset;cursor:pointer;display:block;width:100%;text-align:center;padding:15px 0;margin-top:10px;border-radius:16px;background:var(--fill);color:var(--ink);font-weight:600;font-size:17px;box-sizing:border-box}
+.plab{text-align:center;margin:14px 0 -6px;color:var(--ink2);font-size:14px;font-weight:500}
+.same{all:unset;cursor:pointer;display:table;margin:-6px auto 18px;padding:7px 14px;border-radius:999px;background:var(--tealS);color:var(--teal);font-size:14px;font-weight:600}
+.pnote{margin:6px 2px 0;color:var(--ink2);font-size:14px;line-height:1.5}
 .setup ol{padding-left:20px;color:var(--ink2);font-size:15px}
 .setup li{margin-bottom:6px}
 @media(min-width:620px){.ringc{gap:28px}.ring{width:150px}.ring .in b{font-size:21px}.chart{height:190px}}
@@ -264,7 +276,7 @@ h2{font-size:20px;font-weight:700;letter-spacing:-.015em;margin:0}
     </header>
     <div id="heroBox"></div>
     <div class="qa" id="qa">
-      <button id="qaAdd"><span><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Add</button>
+      <button id="qaPay"><span><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12.5" rx="3"/><circle cx="12" cy="12.25" r="2.4"/><path d="M6.5 9.5v.01M17.5 15v.01"/></svg></span>Payday</button>
       <button id="qaSearch"><span><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg></span>Search</button>
       <button data-go="insights"><span><svg viewBox="0 0 24 24"><path d="M5 19v-7M12 19V5M19 19v-10"/></svg></span>Insights</button>
       <button id="refresh"><span><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></span>Sync</button>
@@ -339,6 +351,26 @@ h2{font-size:20px;font-weight:700;letter-spacing:-.015em;margin:0}
   <button class="save" id="fSave" disabled>Save</button>
   <button class="delrow" id="fDel" hidden>Delete expense</button>
 </section>
+<section class="sheet" id="paySheet" role="dialog" aria-modal="true" aria-label="Payday">
+  <div class="grab"></div>
+  <div class="pask" id="payAsk">
+    <span class="pico"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12.5" rx="3"/><circle cx="12" cy="12.25" r="2.4"/><path d="M6.5 9.5v.01M17.5 15v.01"/></svg></span>
+    <h3>Start a new month?</h3>
+    <p id="payAskT"></p>
+    <div class="warn" id="payWarn" hidden></div>
+    <button class="save" id="payYes">Yes, I got paid</button>
+    <button class="ghost" data-close>Not yet</button>
+  </div>
+  <div id="payForm" hidden>
+    <div class="shead"><button class="link" id="payBack">Back</button><h3>Payday</h3><span style="width:56px"></span></div>
+    <p class="plab">Salary this month</p>
+    <div class="amtin"><span>RM</span><input id="pAmt" inputmode="decimal" placeholder="0.00" autocomplete="off" aria-label="Salary"></div>
+    <button class="same" id="pSame" hidden></button>
+    <div class="field"><label for="pDate">Payday</label><input id="pDate" type="date"></div>
+    <p class="pnote" id="pNote"></p>
+    <button class="save" id="pGo" disabled>Start new month</button>
+  </div>
+</section>
 <div class="lock" id="lock" hidden>
   <div class="wall" aria-hidden="true"><i></i><i></i><i></i></div>
   <div class="mark">wr<i></i></div>
@@ -399,6 +431,9 @@ function prep(){
     return{date:new Date(y,m-1,d),time:String(x.t||""),emoji:sp>0?c.slice(0,sp):"📦",cat:sp>0?c.slice(sp+1):c,amt:Number(x.a),note:String(x.r||"").trim(),month:String(x.m),pending:!!x.pending,
       key:x.pending?"q"+x.qi:"n"+x.n,n:x.n,qi:x.qi,raw:x}});
   months=[...new Set(rows.map(r=>r.month))].sort();
+  // a month started on Payday has a salary but maybe no expenses yet
+  const lastM=months[months.length-1]||"";
+  Object.keys(budgets).forEach(k=>{if(/^\d{4}-\d{2} [A-Z]/.test(k)&&k>lastM&&!months.includes(k))months.push(k)});months.sort();
   today=new Date();today.setHours(0,0,0,0);
   if(!months.includes(cur))cur=months[months.length-1]||"";
 }
@@ -437,7 +472,7 @@ async function flush(fromSave){
 }
 
 // ---------- save confirmation ----------
-const ICON={check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',cloud:'<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.4 1.5A3.3 3.3 0 0 0 7 18z"/><path d="M12 11v4M12 15l-1.8-1.8M12 15l1.8-1.8"/></svg>'};
+const ICON={check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',alert:'<svg viewBox="0 0 24 24"><path d="M12 7v6.5M12 17.2v.01"/></svg>',cloud:'<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.4 1.5A3.3 3.3 0 0 0 7 18z"/><path d="M12 11v4M12 15l-1.8-1.8M12 15l1.8-1.8"/></svg>'};
 const catOf=c=>{const i=String(c).indexOf(" ");return i>0?[c.slice(0,i),c.slice(i+1)]:["📦",c]};
 function banner(state,items){
   const el=$("banner");clearTimeout(banner.h);
@@ -446,11 +481,15 @@ function banner(state,items){
   const T={sending:["Saving…",desc],
     ok:[one?"Saved to your sheet":`${items.length} expenses synced`,one?desc+" · "+(one.show||one.month).slice(8,11):"All in your Google Sheet now"],
     queued:["Saved on this phone","No connection, will sync automatically"]}[state];
+  note(state,T[0],T[1],rm(total));
+}
+function note(state,title,sub,amt){
+  const el=$("banner");clearTimeout(banner.h);
   el.className="banner gl "+state;
-  $("bnI").innerHTML=state==="ok"?ICON.check:state==="queued"?ICON.cloud:"";
-  $("bnT").textContent=T[0];$("bnS").textContent=T[1];$("bnA").textContent=rm(total);
+  $("bnI").innerHTML=state==="ok"?ICON.check:state==="queued"?ICON.cloud:state==="err"?ICON.alert:"";
+  $("bnT").textContent=title;$("bnS").textContent=sub;$("bnA").textContent=amt;
   void el.offsetWidth;el.classList.add("on");
-  banner.h=setTimeout(()=>el.classList.remove("on"),state==="sending"?20000:state==="ok"?3200:4200);
+  banner.h=setTimeout(()=>el.classList.remove("on"),state==="sending"?30000:state==="ok"?3600:5000);
 }
 $("banner").onclick=()=>$("banner").classList.remove("on");
 // iOS 18+ plays a light haptic when a switch toggles; other phones use vibrate where allowed
@@ -498,13 +537,14 @@ function renderHome(){
   const byDay=Array(len).fill(0);R.forEach(r=>{const i=Math.round((r.date-s)/DAY);if(i>=0&&i<len)byDay[i]+=r.amt});
   const avg=total/Math.min(elapsed,len),big=R.reduce((a,r)=>r.amt>a.amt?r:a,{amt:0,note:""});
   const bud=budgets[cur],dl=Math.max(1,len-elapsed+(today<=e?1:0));
+  const todayCol=today<=e?["Today",rm(R.filter(r=>+r.date===+today).reduce((a,r)=>a+r.amt,0))]:["Biggest",rm(big.amt)];
   const chip=`<label class="chip">${esc(cur.slice(8))}<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
     <select id="mSel" aria-label="Month">${[...months].reverse().map(m=>`<option value="${esc(m)}"${m===cur?" selected":""}>${esc(m.slice(8))} ${m.slice(0,4)}</option>`).join("")}</select></label>`;
   let head,amount,pct,cols;
   if(bud){const left=bud-total;pct=Math.min(100,total/bud*100);
     head=left<0?"Over budget by":"Left to spend";amount=Math.abs(left);
-    cols=[["Spent",rm(total)],[today<=e&&left>0?"Daily budget":"Avg / day",rm(today<=e&&left>0?left/dl:avg)],["Salary",rmShort(bud)]]}
-  else{head="Spent this cycle";amount=total;pct=0;cols=[["Items",R.length],["Avg / day",rm(avg)],["Biggest",rm(big.amt)]]}
+    cols=[["Spent",rm(total)],[today<=e&&left>0?"Daily budget":"Avg / day",rm(today<=e&&left>0?left/dl:avg)],todayCol]}
+  else{head="Spent this cycle";amount=total;pct=0;cols=[["Items",R.length],["Avg / day",rm(avg)],todayCol]}
   hero.innerHTML=`<section class="hero">${chip}<div class="cl">${head}</div><div class="cb"><small>RM</small>${num(amount)}</div>
     ${bud?`<div class="hb"><i style="width:${pct}%"></i></div>`:""}
     <div class="cr">${cols.map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join("")}</div></section>`;
@@ -593,10 +633,11 @@ document.querySelectorAll("[data-close]").forEach(b=>b.onclick=hide);
 let fCat="";
 $("fCats").innerHTML=CATS.map(c=>{const sp=c.indexOf(" ");return`<button type="button" aria-pressed="false" data-c="${esc(c)}"><b>${c.slice(0,sp)}</b>${esc(c.slice(sp+1))}</button>`}).join("");
 const valid=()=>{const a=parseFloat($("fAmt").value);$("fSave").disabled=!(a>0&&fCat&&$("fDate").value)};
-const fit=()=>{$("fAmt").style.width=Math.max(2.8,$("fAmt").value.length*.6+.4)+"em"};
+const fitIn=el=>{el.style.width=Math.max(2.8,el.value.length*.6+.4)+"em"},fit=()=>fitIn($("fAmt"));
+const money=el=>{let v=el.value.replace(",",".").replace(/[^0-9.]/g,"");const i=v.indexOf(".");if(i>=0)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,"").slice(0,2);el.value=v};
 $("fCats").onclick=e=>{const b=e.target.closest("[data-c]");if(!b)return;fCat=b.dataset.c;
   $("fCats").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));valid()};
-$("fAmt").oninput=e=>{let v=e.target.value.replace(",",".").replace(/[^0-9.]/g,"");const i=v.indexOf(".");if(i>=0)v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,"").slice(0,2);e.target.value=v;fit();valid()};
+$("fAmt").oninput=e=>{money(e.target);fit();valid()};
 $("fDate").oninput=valid;
 $("fRem").onkeydown=e=>{if(e.key==="Enter")e.target.blur()};
 let editing=null;
@@ -612,7 +653,6 @@ function openForm(r){
     $("fDate").value=`${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;$("fTime").value=`${pad(n.getHours())}:${pad(n.getMinutes())}`}
   fit();valid();show("addSheet");if(!r)setTimeout(()=>$("fAmt").focus(),60)}
 $("openAdd").onclick=()=>openForm();
-$("qaAdd").onclick=()=>openForm();
 $("qaSearch").onclick=()=>{go("activity");setTimeout(()=>$("q").focus(),50)};
 document.addEventListener("change",e=>{if(e.target.id==="mSel"){cur=e.target.value;renderAll()}});
 function formVals(){
@@ -661,6 +701,60 @@ $("fDel").onclick=()=>{const b=$("fDel");
   if(!b.classList.contains("sure")){b.classList.add("sure");b.textContent="Tap again to delete";return}
   const r=editing;hide();if(r)delRow(r)};
 const byKey=k=>rows.find(r=>r.key===k);
+
+// ---------- payday: start the next salary month (same as the Payday shortcut) ----------
+// Two steps so a stray tap never submits: confirm first, then type the salary.
+const isoOf=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+// the sheet starts the month after the payday's calendar month (Code.gs startNewMonth_)
+const nextLabel=iso=>{const[y,m]=iso.split("-").map(Number),d=new Date(y,m,1);return`${d.getFullYear()}-${pad(d.getMonth()+1)} ${MF[d.getMonth()]}`};
+const mFull=l=>l.slice(8)+" "+l.slice(0,4);
+const lastSalary=()=>{const k=Object.keys(budgets).sort();return k.length?budgets[k[k.length-1]]:0};
+function payNote(){
+  const iso=$("pDate").value,a=parseFloat($("pAmt").value);
+  if(!iso){$("pNote").textContent="";$("pGo").disabled=true;return}
+  const l=nextLabel(iso),[y,m,d]=iso.split("-").map(Number);
+  $("pNote").innerHTML=`Starts <b>${esc(mFull(l))}</b>. Expenses from <b>${d} ${MS[m-1]}</b> onward move into it.`;
+  $("pGo").disabled=!(a>0);$("pGo").textContent=a>0?`Start ${l.slice(8)} · ${rm(a)}`:`Start ${l.slice(8)}`;
+}
+function openPay(){
+  if(!URL_)return;
+  const label=nextLabel(isoOf(today)),latest=months[months.length-1]||"";
+  let t=`This starts <b>${esc(mFull(label))}</b> in your sheet and sets its salary.`,w="";
+  if(latest&&latest>=label)t=`<b>${esc(mFull(latest))}</b> has already started. Going ahead updates its salary and moves expenses from your payday into it.`;
+  else if(latest){t=`You're in <b>${esc(mFull(latest))}</b> now. `+t;
+    const ago=Math.round((today-cycle(latest)[0])/DAY);
+    if(ago>=0&&ago<20)w=`${esc(latest.slice(8))} only started ${ago===0?"today":ago===1?"yesterday":ago+" days ago"}. Make sure you've really been paid.`}
+  $("payAskT").innerHTML=t;$("payWarn").innerHTML=w;$("payWarn").hidden=!w;
+  $("payAsk").hidden=false;$("payForm").hidden=true;show("paySheet")}
+$("qaPay").onclick=openPay;
+$("payYes").onclick=()=>{
+  const last=lastSalary();
+  $("pAmt").value="";fitIn($("pAmt"));$("pDate").value=isoOf(today);
+  $("pSame").hidden=!last;$("pSame").textContent=`Same as last month · ${rm(last)}`;
+  $("payAsk").hidden=true;$("payForm").hidden=false;payNote();
+  setTimeout(()=>$("pAmt").focus(),60)};
+$("payBack").onclick=()=>{$("payForm").hidden=true;$("payAsk").hidden=false;document.activeElement&&document.activeElement.blur()};
+$("pSame").onclick=()=>{const l=lastSalary();$("pAmt").value=l%1?l.toFixed(2):String(l);fitIn($("pAmt"));payNote()};
+$("pAmt").oninput=e=>{money(e.target);fitIn(e.target);payNote()};
+$("pDate").oninput=payNote;
+$("pGo").onclick=async()=>{
+  const s=Math.round(parseFloat($("pAmt").value)*100)/100,iso=$("pDate").value;if(!(s>0)||!iso)return;
+  const label=nextLabel(iso),name=label.slice(8);hide();
+  if(!navigator.onLine){note("err","Payday needs internet","Nothing changed. Try again when you're online","");return}
+  note("sending",`Starting ${name}…`,"Updating your sheet",rm(s));
+  try{
+    // expenses saved offline must reach the sheet first, or they'd be filed under the new month
+    if(queue.length){await flush();if(queue.length)throw new Error("queue")}
+    const r=await fetch(URL_,{method:"POST",body:JSON.stringify({action:"payday",date:iso,salary:s})});
+    const t=await r.text();
+    if(!r.ok||!/^New month started/.test(t))throw new Error("bad");
+    const mv=+((t.match(/Moved (\d+)/)||[])[1]||0);
+    cur=label;await load(true);go("home");haptic();
+    note("ok",`${name} started`,`Salary set${mv?` · ${mv} ${mv===1?"expense":"expenses"} moved in`:""}`,rm(s));
+  }catch(e){
+    note("err",e.message==="queue"?"Sync your expenses first":"Payday didn't go through",
+      e.message==="queue"?"Some expenses are still waiting to sync":"Check your connection, then try again. It's safe to repeat","");load(true)}
+};
 
 // swipe left on a row to reveal Delete, tap to edit
 let swOpen=null;
