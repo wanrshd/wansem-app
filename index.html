@@ -186,7 +186,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.
 
 // one-time setup link: index.html#u=<exec url>
 let URL_=store.get("url","");
-function fromHash(){if(location.hash.startsWith("#u=")){URL_=decodeURIComponent(location.hash.slice(3));store.set("url",URL_);history.replaceState(null,"",location.pathname);return true}}
+function fromHash(){if(location.hash.startsWith("#u=")){URL_=decodeURIComponent(location.hash.slice(3));store.set("url",URL_);return true}} // hash kept so Add to Home Screen captures it as the start URL
 fromHash();
 window.addEventListener("hashchange",()=>{if(fromHash()){render();load()}});
 let cache=store.get("cache",null),queue=store.get("queue",[]);
